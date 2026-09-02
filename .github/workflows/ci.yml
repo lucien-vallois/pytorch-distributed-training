@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,data]"
+      - name: Run tests
+        run: python -m pytest
+      - name: Check formatting
+        run: python -m black --check src tests examples
+      - name: Run two-process DDP smoke test
+        if: matrix.python-version == '3.11'
+        env:
+          RUN_DDP_TESTS: "1"
+        run: python -m pytest tests/test_ddp.py
+      - name: Run torchrun launcher smoke test
+        if: matrix.python-version == '3.11'
+        run: python -m torch.distributed.run --standalone --nproc-per-node=2 examples/train_classifier.py --backend ddp --device cpu --epochs 1 --samples 32
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+      - name: Build source and wheel distributions
+        run: python -m build
+      - name: Check distribution metadata
+        run: python -m twine check dist/*
+      - name: Verify source distribution contents
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import tarfile
+
+          archive = next(Path("dist").glob("*.tar.gz"))
+          with tarfile.open(archive) as source:
+              names = source.getnames()
+          required = (
+              "examples/train_classifier.py",
+              "tests/test_data.py",
+              "CONTRIBUTING.md",
+              "SECURITY.md",
+          )
+          missing = [item for item in required if not any(name.endswith(item) for name in names)]
+          assert not missing, f"missing from sdist: {missing}"
+          PY
+      - name: Install the built wheel without publishing
+        run: |
+          python -m pip install --no-deps dist/*.whl
+          python -c "from importlib.metadata import version; assert version('pytorch-distributed-training') == '0.1.0'"

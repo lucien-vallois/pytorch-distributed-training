@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytorch-distributed-training"
+version = "0.1.0"
+description = "Small PyTorch training utilities with local and DistributedDataParallel execution"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.21",
+    "torch>=2.0",
+]
+
+[project.urls]
+Repository = "https://github.com/lucien-vallois/pytorch-distributed-training"
+Issues = "https://github.com/lucien-vallois/pytorch-distributed-training/issues"
+
+[project.optional-dependencies]
+data = [
+    "pandas>=1.5",
+    "Pillow>=9",
+    "torchvision>=0.15",
+]
+monitoring = [
+    "prometheus-client>=0.14",
+    "wandb>=0.12",
+]
+dev = [
+    "black>=23",
+    "prometheus-client>=0.14",
+    "pytest>=7",
+    "pytest-cov>=4",
+]
+
+[tool.setuptools]
+packages = [
+    "pytorch_distributed_training",
+    "pytorch_distributed_training.data",
+    "pytorch_distributed_training.models",
+    "pytorch_distributed_training.utils",
+]
+include-package-data = false
+
+[tool.setuptools.package-dir]
+pytorch_distributed_training = "src"
+"pytorch_distributed_training.data" = "src/data"
+"pytorch_distributed_training.models" = "src/models"
+"pytorch_distributed_training.utils" = "src/utils"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+markers = [
+    "distributed: requires a multi-process torchrun environment",
+    "gpu: requires CUDA",
+]
+
+[tool.coverage.run]
+source = ["pytorch_distributed_training"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
